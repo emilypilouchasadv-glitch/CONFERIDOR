@@ -192,6 +192,8 @@ function registrarFalha(chave) {
 
 // ---------- Páginas ----------
 const pub = path.join(__dirname, "public");
+// Endereço leve para serviços de monitoramento manterem o site acordado (não acessa o banco de dados)
+app.get("/saude", (req, res) => { res.setHeader("Cache-Control", "no-store"); res.type("text").send("ok"); });
 app.get("/", (req, res) => res.redirect(usuarioDa(req) ? "/app" : "/login"));
 app.get("/login", (req, res) => res.sendFile(path.join(pub, "login.html")));
 app.get("/admin", (req, res) => {
