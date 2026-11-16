@@ -23,6 +23,9 @@ const DATA_DIR = path.resolve(process.env.DATA_DIR || path.join(__dirname, "data
 const DB_FILE = path.join(DATA_DIR, "db.json");
 const LIMITE_DIA_PADRAO = +(process.env.LIMITE_DIA_PADRAO ?? 20);
 const LIMITE_TOTAL_PADRAO = +(process.env.LIMITE_TOTAL_PADRAO ?? 0);
+// Teto de análises por dia somando todos os usuários (protege os créditos da chave). 0 = sem teto.
+const LIMITE_GLOBAL_DIA = +(process.env.LIMITE_GLOBAL_DIA ?? 200);
+const MAX_BYTES_IMAGEM = 6 * 1024 * 1024; // ~4,5 MB por página depois de convertida
 const PLANOS = { 3: "3 dias", 7: "7 dias", 15: "15 dias", 30: "30 dias", 365: "1 ano" };
 const DIA = 86400000;
 
@@ -281,6 +284,15 @@ app.post("/api/analisar", exigeLogin(true), async (req, res) => {
   catch (e) { return res.status(400).json({ erro: e.message }); }
   const imagens = Array.isArray(req.body.images) ? req.body.images.slice(0, MAX_IMAGENS) : [];
   if (!imagens.length) return res.status(400).json({ erro: "Anexe ao menos um documento." });
+  if (imagens.some((im) => typeof im?.data !== "string" || im.data.length > MAX_BYTES_IMAGEM))
+    return res.status(400).json({ erro: "Arquivo muito grande. Envie fotos ou PDFs menores." });
+  if (u.role !== "admin" && LIMITE_GLOBAL_DIA > 0) {
+    const totalHoje = db.users.reduce((t, x) => t + (x.usoDia?.data === hoje() ? x.usoDia.qtd : 0), 0);
+    if (totalHoje >= LIMITE_GLOBAL_DIA) {
+      log(u.id, "teto diário atingido", String(LIMITE_GLOBAL_DIA));
+      return res.status(403).json({ erro: "O limite diário de análises do sistema foi atingido. Tente novamente amanhã.", codigo: "limite" });
+    }
+  }
 
   // Reserva o uso antes da chamada (evita ultrapassar o limite com cliques simultâneos)
   usoHoje(u); u.usoDia.qtd++; u.usoTotal = (u.usoTotal || 0) + 1; save();
