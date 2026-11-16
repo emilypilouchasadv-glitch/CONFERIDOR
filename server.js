@@ -28,7 +28,14 @@ const DIA = 86400000;
 // ---------- Banco de dados ----------
 // Com DATABASE_URL (ex.: Neon/Supabase gratuitos) os dados ficam no PostgreSQL;
 // sem ela, ficam no arquivo data/db.json.
-const DATABASE_URL = process.env.DATABASE_URL;
+// Limpa erros comuns de cópia: "psql '...'", aspas, "DATABASE_URL=" e espaços
+const DATABASE_URL = (() => {
+  const v = String(process.env.DATABASE_URL || "").trim();
+  if (!v) return "";
+  const m = v.match(/postgres(?:ql)?:\/\/[^\s'"`]+/);
+  if (!m) { console.error("DATABASE_URL inválida: deve começar com postgresql://"); return v; }
+  return m[0];
+})();
 let pool = null;
 let db = { users: [], sessions: {}, logs: [] };
 async function carregarBanco() {
@@ -391,4 +398,5 @@ carregarBanco()
     criarAdmin();
     app.listen(PORT, () => console.log(`Conferidor rodando em http://localhost:${PORT}  (modelo: ${MODEL})`));
   })
-  .catch((e) => { console.error("Não foi possível abrir o banco de dados:", e.message); process.exit(1); });
+  .catch((e) => { console.error("Não foi possível abrir o banco de dados:", e.message);
+    if (DATABASE_URL) console.error("Endereço usado (sem senha):", DATABASE_URL.replace(/:\/\/([^:@]+):[^@]*@/, "://$1:***@")); process.exit(1); });
