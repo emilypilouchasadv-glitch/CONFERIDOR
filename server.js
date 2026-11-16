@@ -26,6 +26,11 @@ const LIMITE_TOTAL_PADRAO = +(process.env.LIMITE_TOTAL_PADRAO ?? 0);
 // Teto de análises por dia somando todos os usuários (protege os créditos da chave). 0 = sem teto.
 const LIMITE_GLOBAL_DIA = +(process.env.LIMITE_GLOBAL_DIA ?? 200);
 const MAX_BYTES_IMAGEM = 6 * 1024 * 1024; // ~4,5 MB por página depois de convertida
+// LGPD: identificação do controlador (quem responde pelos dados) e versão do termo
+const CONTROLADOR_NOME = process.env.CONTROLADOR_NOME || "o administrador do Conferidor";
+const CONTROLADOR_EMAIL = process.env.CONTROLADOR_EMAIL || process.env.ADMIN_EMAIL || "";
+const VERSAO_TERMO = "2026-11-16";
+const RETENCAO_LOGS_DIAS = 180;
 const PLANOS = { 3: "3 dias", 7: "7 dias", 15: "15 dias", 30: "30 dias", 365: "1 ano" };
 const DIA = 86400000;
 
@@ -108,6 +113,8 @@ function criarAdmin() {
   save();
 }
 
+const precisaConsentir = (u) => u.role !== "admin" && u.consentimento?.versao !== VERSAO_TERMO;
+
 // Situação de acesso de um usuário
 function situacao(u) {
   if (u.role === "admin") return { ok: true, codigo: "ativo", msg: "Administrador" };
@@ -127,7 +134,7 @@ function publico(u) {
     id: u.id, nome: u.nome, email: u.email, telefone: u.telefone, role: u.role, status: u.status,
     situacao: s.codigo, expiraEm: u.expiraEm, criadoEm: u.criadoEm, ultimoAcesso: u.ultimoAcesso || null,
     limiteDia: u.limiteDia, limiteTotal: u.limiteTotal, usoHoje: usoHoje(u), usoTotal: u.usoTotal || 0,
-    plano: u.plano || null, observacao: u.observacao || "",
+    plano: u.plano || null, observacao: u.observacao || "", consentimentoEm: u.consentimento?.em || null,
   };
 }
 
@@ -136,7 +143,15 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "60mb" }));
 app.use(cookieParser());
-app.use((req, res, next) => { res.setHeader("X-Frame-Options", "SAMEORIGIN"); next(); });
+app.use((req, res, next) => {
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  if (req.secure) res.setHeader("Strict-Transport-Security", "max-age=31536000");
+  // Respostas com dados pessoais não ficam guardadas em cache do navegador ou de intermediários
+  if (req.path.startsWith("/api/")) res.setHeader("Cache-Control", "no-store");
+  next();
+});
 
 const SESS_DIAS = 7;
 function criarSessao(res, req, u) {
@@ -185,6 +200,14 @@ app.get("/admin", (req, res) => {
   if (u.role !== "admin") return res.redirect("/app");
   res.sendFile(path.join(pub, "admin.html"));
 });
+const PRIVACIDADE = () => fs.readFileSync(path.join(pub, "privacidade.html"), "utf8")
+  .replace(/\{\{CONTROLADOR\}\}/g, CONTROLADOR_NOME.replace(/[<>&]/g, ""))
+  .replace(/\{\{CONTATO\}\}/g, CONTROLADOR_EMAIL.replace(/[<>&]/g, "") || "pelo e-mail do administrador")
+  .replace(/\{\{VERSAO\}\}/g, VERSAO_TERMO.split("-").reverse().join("/"));
+app.get("/privacidade", (req, res) => res.type("html").send(PRIVACIDADE()));
+app.get("/meus-dados", (req, res) => res.redirect(usuarioDa(req) ? "/meus-dados.html" : "/login"));
+app.get("/meus-dados.html", exigeLogin(false), (req, res) => res.sendFile(path.join(pub, "meus-dados.html")));
+app.get("/consentimento", exigeLogin(false), (req, res) => res.sendFile(path.join(pub, "consentimento.html")));
 app.get("/estilo.css", (req, res) => res.sendFile(path.join(pub, "estilo.css")));
 app.get("/shim.js", (req, res) => res.sendFile(path.join(pub, "shim.js")));
 
@@ -196,6 +219,7 @@ const CONFERIDOR = ORIGINAL.replace(
 app.get("/app", exigeLogin(false), (req, res) => {
   const s = situacao(req.user);
   if (!s.ok) return res.sendFile(path.join(pub, "sem-acesso.html"));
+  if (precisaConsentir(req.user)) return res.redirect("/consentimento");
   res.setHeader("Cache-Control", "no-store");
   res.type("html").send(CONFERIDOR);
 });
@@ -207,14 +231,17 @@ app.post("/api/cadastro", (req, res) => {
   const telefone = String(req.body.telefone || "").trim().slice(0, 40);
   const senha = String(req.body.senha || "");
   if (!nome || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ erro: "Informe nome e e-mail válidos." });
-  if (senha.length < 6) return res.status(400).json({ erro: "A senha precisa ter pelo menos 6 caracteres." });
+  if (senha.length < 8) return res.status(400).json({ erro: "A senha precisa ter pelo menos 8 caracteres." });
   if (db.users.some((u) => u.email === email)) return res.status(400).json({ erro: "Este e-mail já está cadastrado." });
+  if (req.body.aceite !== true && req.body.aceite !== "on")
+    return res.status(400).json({ erro: "Para criar a conta é preciso ler e aceitar a Política de Privacidade." });
   const u = {
     id: novoId(), nome, email, telefone, hash: bcrypt.hashSync(senha, 10), role: "user", status: "pendente",
     expiraEm: null, plano: null, limiteDia: LIMITE_DIA_PADRAO, limiteTotal: LIMITE_TOTAL_PADRAO,
     usoTotal: 0, usoDia: { data: hoje(), qtd: 0 }, criadoEm: new Date().toISOString(),
+    consentimento: { versao: VERSAO_TERMO, em: new Date().toISOString() },
   };
-  db.users.push(u); log(u.id, "cadastro", email); save();
+  db.users.push(u); log(u.id, "cadastro", "consentimento registrado"); save();
   criarSessao(res, req, u);
   res.json({ ok: true });
 });
@@ -240,7 +267,7 @@ app.post("/api/logout", (req, res) => {
 
 app.get("/api/eu", exigeLogin(true), (req, res) => {
   const s = situacao(req.user);
-  res.json({ ...publico(req.user), acessoOk: s.ok, mensagem: s.msg });
+  res.json({ ...publico(req.user), acessoOk: s.ok, mensagem: s.msg, precisaConsentir: precisaConsentir(req.user) });
 });
 
 app.post("/api/trocar-senha", exigeLogin(true), (req, res) => {
@@ -250,6 +277,63 @@ app.post("/api/trocar-senha", exigeLogin(true), (req, res) => {
   req.user.hash = bcrypt.hashSync(String(nova), 10); save();
   res.json({ ok: true });
 });
+
+// ---------- API: direitos do titular (LGPD, art. 18) ----------
+app.post("/api/aceitar-termo", exigeLogin(true), (req, res) => {
+  req.user.consentimento = { versao: VERSAO_TERMO, em: new Date().toISOString() };
+  log(req.user.id, "consentimento registrado", VERSAO_TERMO); save();
+  res.json({ ok: true });
+});
+
+// Exporta todos os dados que o sistema guarda sobre a pessoa (acesso e portabilidade)
+app.get("/api/meus-dados", exigeLogin(true), (req, res) => {
+  const u = req.user;
+  const dados = {
+    geradoEm: new Date().toISOString(),
+    observacao: "Os documentos enviados para análise não são guardados pelo sistema; por isso não aparecem aqui.",
+    conta: {
+      nome: u.nome, email: u.email, telefone: u.telefone, criadoEm: u.criadoEm, ultimoAcesso: u.ultimoAcesso || null,
+      situacao: situacao(u).codigo, plano: u.plano || null, acessoAte: u.expiraEm,
+      limites: { porDia: u.limiteDia, total: u.limiteTotal }, uso: { hoje: usoHoje(u), total: u.usoTotal || 0 },
+      consentimento: u.consentimento || null,
+    },
+    historico: db.logs.filter((l) => l.userId === u.id).map(({ em, acao, detalhe }) => ({ em, acao, detalhe })),
+  };
+  res.setHeader("Content-Disposition", 'attachment; filename="meus-dados-conferidor.json"');
+  res.type("application/json").send(JSON.stringify(dados, null, 2));
+});
+
+app.post("/api/corrigir-dados", exigeLogin(true), (req, res) => {
+  const nome = String(req.body.nome || "").trim().slice(0, 120);
+  const telefone = String(req.body.telefone || "").trim().slice(0, 40);
+  if (!nome) return res.status(400).json({ erro: "Informe o nome." });
+  req.user.nome = nome; req.user.telefone = telefone; save();
+  res.json({ ok: true });
+});
+
+// Eliminação: apaga a conta, as sessões e o histórico da pessoa
+function apagarUsuario(u) {
+  db.users = db.users.filter((x) => x.id !== u.id);
+  for (const [k, s] of Object.entries(db.sessions)) if (s.userId === u.id) delete db.sessions[k];
+  db.logs = db.logs.filter((l) => l.userId !== u.id);
+  save();
+}
+app.post("/api/excluir-conta", exigeLogin(true), (req, res) => {
+  const u = req.user;
+  if (u.role === "admin") return res.status(400).json({ erro: "A conta de administrador não pode ser excluída por aqui." });
+  if (!bcrypt.compareSync(String(req.body.senha || ""), u.hash)) return res.status(400).json({ erro: "Senha incorreta." });
+  apagarUsuario(u);
+  res.clearCookie("sid"); res.json({ ok: true });
+});
+
+// Retenção: o histórico de ações é apagado depois de RETENCAO_LOGS_DIAS dias
+function limparHistoricoAntigo() {
+  const corte = new Date(Date.now() - RETENCAO_LOGS_DIAS * DIA).toISOString();
+  const antes = db.logs.length;
+  db.logs = db.logs.filter((l) => l.em >= corte);
+  for (const [k, s] of Object.entries(db.sessions)) if (s.expira < Date.now()) delete db.sessions[k];
+  if (db.logs.length !== antes) save();
+}
 
 // ---------- API: análise com Claude ----------
 // Aceita a chave mesmo se colada junto com outro texto (ex.: um comando curl de exemplo)
@@ -272,6 +356,7 @@ app.post("/api/analisar", exigeLogin(true), async (req, res) => {
   const u = req.user;
   const s = situacao(u);
   if (!s.ok) return res.status(403).json({ erro: s.msg, codigo: s.codigo });
+  if (precisaConsentir(u)) return res.status(403).json({ erro: "Aceite a Política de Privacidade para usar o conferidor.", codigo: "consentimento" });
   if (u.role !== "admin") {
     if (u.limiteDia > 0 && usoHoje(u) >= u.limiteDia)
       return res.status(403).json({ erro: `Você atingiu o limite de ${u.limiteDia} análises por dia. Tente novamente amanhã.`, codigo: "limite" });
@@ -376,9 +461,8 @@ app.post("/api/admin/usuarios/:id", exigeAdmin, (req, res) => {
   } else if (acao === "tornarAdmin") {
     u.role = b.admin ? "admin" : "user";
   } else if (acao === "excluir") {
-    db.users = db.users.filter((x) => x.id !== u.id);
-    for (const [k, s] of Object.entries(db.sessions)) if (s.userId === u.id) delete db.sessions[k];
-    log(u.id, "excluido", `${u.email} por ${req.user.email}`); save();
+    apagarUsuario(u);
+    log(req.user.id, "conta excluída", "dados pessoais apagados");
     return res.json({ ok: true });
   } else return res.status(400).json({ erro: "Ação inválida." });
   save();
@@ -419,6 +503,8 @@ app.get("/api/admin/exportar.csv", exigeAdmin, (req, res) => {
 carregarBanco()
   .then(() => {
     criarAdmin();
+    limparHistoricoAntigo();
+    setInterval(limparHistoricoAntigo, DIA / 4);
     app.listen(PORT, () => console.log(`Conferidor rodando em http://localhost:${PORT}  (modelo: ${MODEL})`));
   })
   .catch((e) => { console.error("Não foi possível abrir o banco de dados:", e.message);

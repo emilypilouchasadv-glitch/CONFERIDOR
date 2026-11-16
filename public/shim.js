@@ -17,6 +17,7 @@
       });
       var d = await r.json().catch(function () { return {}; });
       if (r.status === 401) { location.href = "/login"; throw new Error("Sessão expirada."); }
+      if (d.codigo === "consentimento") { location.href = "/consentimento"; throw new Error(d.erro); }
       atualizarBarra();
       if (!r.ok) throw new Error(d.erro || "Falha na análise.");
       return d.resultado;
@@ -47,7 +48,7 @@
     st.textContent = "#cd-barra{position:sticky;top:0;z-index:50;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between;padding:8px 16px;background:rgba(6,22,56,.92);color:#fff;font:14px system-ui,sans-serif;border-bottom:2px solid #f2c14e}#cd-barra a,#cd-barra button{color:#f2c14e;background:none;border:1px solid #f2c14e;border-radius:8px;padding:4px 10px;font:inherit;cursor:pointer;text-decoration:none}#cd-barra .cd-acoes{display:flex;gap:8px}@media print{#cd-barra{display:none}}";
     document.head.appendChild(st);
     var b = document.createElement("div"); b.id = "cd-barra";
-    b.innerHTML = '<span class="cd-info">Carregando…</span><span class="cd-acoes"><a class="cd-adm" href="/admin" hidden>Painel admin</a><button type="button" class="cd-sair">Sair</button></span>';
+    b.innerHTML = '<span class="cd-info">Carregando…</span><span class="cd-acoes"><a href="/meus-dados">Meus dados</a><a class="cd-adm" href="/admin" hidden>Painel admin</a><button type="button" class="cd-sair">Sair</button></span>';
     document.body.prepend(b);
     b.querySelector(".cd-sair").onclick = async function () { await fetch("/api/logout", { method: "POST" }); location.href = "/login"; };
     atualizarBarra();

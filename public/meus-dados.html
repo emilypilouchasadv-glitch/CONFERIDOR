@@ -1,0 +1,44 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meus dados · Conferidor de Documentos</title><link rel="stylesheet" href="/estilo.css"></head>
+<body><header class="topo"><div><div class="ey">Seus direitos · LGPD</div><h1>Meus dados</h1></div><a href="/app">Voltar ao conferidor</a></header>
+<main style="max-width:640px">
+ <div class="card">
+  <h2 style="margin-top:0;font-size:1.05rem">O que o sistema guarda sobre você</h2>
+  <div id="resumo" class="mu">Carregando…</div>
+  <p class="mu">Os seus <b>documentos e resultados de análise não são guardados</b>. Por isso, não aparecem aqui.</p>
+  <a href="/api/meus-dados"><button type="button">Baixar uma cópia dos meus dados</button></a>
+ </div>
+
+ <div class="card">
+  <h2 style="margin-top:0;font-size:1.05rem">Corrigir meus dados</h2>
+  <form id="fCorr">
+   <label>Nome completo</label><input name="nome" required>
+   <label>Telefone / WhatsApp</label><input name="telefone">
+   <button class="w100">Salvar</button>
+  </form>
+  <div id="mCorr" class="msg"></div>
+ </div>
+
+ <div class="card">
+  <h2 style="margin-top:0;font-size:1.05rem">Excluir minha conta</h2>
+  <p class="mu">Apaga definitivamente a sua conta e todo o seu histórico, e revoga o seu consentimento. Não dá para desfazer.</p>
+  <form id="fExc">
+   <label>Confirme com a sua senha</label><input name="senha" type="password" required autocomplete="current-password">
+   <button class="w100 perigo">Excluir minha conta e meus dados</button>
+  </form>
+  <div id="mExc" class="msg"></div>
+ </div>
+ <p class="mu">Veja a <a href="/privacidade">Política de Privacidade</a>. Dúvidas ou outros pedidos: fale com o administrador.</p>
+</main>
+<script>
+const $=s=>document.querySelector(s);const dt=d=>d?new Date(d).toLocaleString("pt-BR"):"—";
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+fetch("/api/eu").then(r=>{if(r.status===401)location.href="/login";return r.json()}).then(u=>{
+ $("#resumo").innerHTML=`<p><b>Nome:</b> ${esc(u.nome)}<br><b>E-mail:</b> ${esc(u.email)}<br><b>Telefone:</b> ${esc(u.telefone)||"—"}<br><b>Cadastro:</b> ${dt(u.criadoEm)}<br><b>Último acesso:</b> ${dt(u.ultimoAcesso)}<br><b>Acesso até:</b> ${u.expiraEm?new Date(u.expiraEm).toLocaleDateString("pt-BR"):"—"}<br><b>Análises feitas:</b> ${u.usoTotal}<br><b>Consentimento:</b> ${u.consentimentoEm?dt(u.consentimentoEm):"—"}</p>`;
+ $("#fCorr").nome.value=u.nome;$("#fCorr").telefone.value=u.telefone||"";
+ if(u.role==="admin")$("#fExc").closest(".card").hidden=true;
+});
+async function post(url,form,m){const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.fromEntries(new FormData(form)))});const d=await r.json().catch(()=>({}));m.className="msg "+(r.ok?"ok":"erro");m.textContent=r.ok?"Salvo.":(d.erro||"Erro.");return r.ok}
+$("#fCorr").onsubmit=e=>{e.preventDefault();post("/api/corrigir-dados",e.target,$("#mCorr"))};
+$("#fExc").onsubmit=async e=>{e.preventDefault();if(!confirm("Tem certeza? A sua conta e o seu histórico serão apagados para sempre."))return;if(await post("/api/excluir-conta",e.target,$("#mExc"))){alert("Sua conta e seus dados foram excluídos.");location.href="/login"}};
+</script></body></html>

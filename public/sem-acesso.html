@@ -2,7 +2,8 @@
 <title>Acesso · Conferidor de Documentos</title><link rel="stylesheet" href="/estilo.css"></head>
 <body><header class="topo"><div><div class="ey">Apoio ao voluntário · QSCon 2027</div><h1>Conferidor de Documentos</h1></div><button id="sair">Sair</button></header>
 <main><div class="card login"><h2 id="tit">Acesso não liberado</h2><p id="txt" class="mu"></p>
-<button class="w100 sec" onclick="location.reload()">Verificar novamente</button></div></main>
+<button class="w100 sec" onclick="location.reload()">Verificar novamente</button>
+<p class="mu" style="text-align:center"><a href="/meus-dados">Meus dados</a> · <a href="/privacidade">Política de Privacidade</a></p></div></main>
 <script>
 fetch("/api/eu").then(r=>r.json()).then(u=>{
  if(u.acessoOk)return location.href="/app";

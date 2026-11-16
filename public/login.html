@@ -13,11 +13,13 @@
   <label>Nome completo</label><input name="nome" required>
   <label>E-mail</label><input name="email" type="email" required autocomplete="username">
   <label>Telefone / WhatsApp (opcional)</label><input name="telefone">
-  <label>Senha (mínimo 6 caracteres)</label><input name="senha" type="password" minlength="6" required autocomplete="new-password">
+  <label>Senha (mínimo 8 caracteres)</label><input name="senha" type="password" minlength="8" required autocomplete="new-password">
+  <label class="ck"><input type="checkbox" name="aceite" required> <span>Li a <a href="/privacidade" target="_blank">Política de Privacidade</a> e concordo com o tratamento dos meus dados, inclusive o envio dos documentos para análise fora do Brasil.</span></label>
   <button class="w100">Criar conta</button>
   <p class="mu">Após o cadastro, o acesso é liberado pelo administrador.</p>
  </form>
  <div id="msg" class="msg"></div>
+ <p class="mu" style="text-align:center;margin-bottom:0"><a href="/privacidade">Política de Privacidade</a></p>
 </div></main>
 <script>
 const $=s=>document.querySelector(s);

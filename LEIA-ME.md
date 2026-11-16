@@ -49,3 +49,10 @@ Depois acesse http://localhost:3000
 - `public/shim.js`: liga o Conferidor ao servidor e mostra a barra com o nome e o uso
 - `public/login.html`, `public/admin.html`, `public/sem-acesso.html`: telas novas
 - `data/db.json`: banco de dados quando não há `DATABASE_URL` (uso local)
+
+## Proteção de dados (LGPD)
+- Os documentos enviados **não são guardados**: são convertidos em imagem no navegador (o que remove os metadados), passam pelo servidor só durante a análise e são descartados. O resultado fica apenas na tela da pessoa.
+- No cadastro, a pessoa precisa aceitar a **Política de Privacidade** (`/privacidade`). A data do aceite fica registrada. Contas criadas pelo administrador aceitam no primeiro acesso.
+- Em **Meus dados** (`/meus-dados`), cada pessoa pode ver e baixar os seus dados, corrigir o nome e o telefone e excluir a conta. A exclusão apaga também o histórico da pessoa.
+- O histórico de ações é apagado automaticamente após 180 dias.
+- Defina `CONTROLADOR_NOME` e `CONTROLADOR_EMAIL` no Render para identificar o responsável pelos dados na política.

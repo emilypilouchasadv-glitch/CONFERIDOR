@@ -1,0 +1,22 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Consentimento · Conferidor de Documentos</title><link rel="stylesheet" href="/estilo.css"></head>
+<body><header class="topo"><div><div class="ey">Proteção de dados · LGPD</div><h1>Conferidor de Documentos</h1></div><button id="sair">Sair</button></header>
+<main><div class="card login" style="max-width:560px">
+ <h2 style="margin-top:0">Antes de continuar</h2>
+ <p>Para conferir os seus documentos, o sistema envia as imagens para análise por uma inteligência artificial (Anthropic, nos EUA).</p>
+ <ul class="mu" style="line-height:1.6">
+  <li>Os documentos <b>não são guardados</b>: são usados só durante a análise.</li>
+  <li>O resultado aparece só na sua tela e <b>não é gravado</b>.</li>
+  <li>O administrador <b>não vê</b> os seus documentos.</li>
+  <li>Você pode baixar os seus dados ou excluir a sua conta quando quiser, em <b>Meus dados</b>.</li>
+ </ul>
+ <label class="ck"><input type="checkbox" id="ok"> Li a <a href="/privacidade" target="_blank">Política de Privacidade</a> e concordo com o tratamento dos meus dados, inclusive o envio dos documentos para análise fora do Brasil.</label>
+ <button class="w100" id="aceitar" disabled>Aceitar e continuar</button>
+ <div id="msg" class="msg"></div>
+</div></main>
+<script>
+const ok=document.getElementById("ok"),b=document.getElementById("aceitar");
+ok.onchange=()=>b.disabled=!ok.checked;
+b.onclick=async()=>{const r=await fetch("/api/aceitar-termo",{method:"POST"});if(r.ok)location.href="/app";else document.getElementById("msg").textContent="Erro. Tente novamente."};
+document.getElementById("sair").onclick=async()=>{await fetch("/api/logout",{method:"POST"});location.href="/login"};
+</script></body></html>

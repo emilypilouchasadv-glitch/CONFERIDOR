@@ -80,7 +80,7 @@ function render(){
  const q=$("#busca").value.toLowerCase(),f=$("#filtro").value;
  const L=U.filter(u=>(!f||u.situacao===f)&&(!q||(u.nome+u.email+u.telefone).toLowerCase().includes(q)));
  $("#lista").innerHTML=L.map(u=>`<tr>
-  <td><b>${esc(u.nome)}</b>${u.role==="admin"?' <span class="badge">admin</span>':""}<br><span class="mu">${esc(u.email)}${u.telefone?" · "+esc(u.telefone):""}</span><br><span class="mu">Cadastro: ${dt(u.criadoEm)} · Último acesso: ${dt(u.ultimoAcesso)}</span>${u.observacao?`<br><span class="mu">📝 ${esc(u.observacao)}</span>`:""}</td>
+  <td><b>${esc(u.nome)}</b>${u.role==="admin"?' <span class="badge">admin</span>':""}<br><span class="mu">${esc(u.email)}${u.telefone?" · "+esc(u.telefone):""}</span><br><span class="mu">Cadastro: ${dt(u.criadoEm)} · Último acesso: ${dt(u.ultimoAcesso)} · Consentimento LGPD: ${u.role==="admin"?"—":u.consentimentoEm?dt(u.consentimentoEm):"pendente"}</span>${u.observacao?`<br><span class="mu">📝 ${esc(u.observacao)}</span>`:""}</td>
   <td><span class="badge b-${u.situacao}">${NOMES[u.situacao]}</span>${u.plano?`<br><span class="mu">${esc(u.plano)}</span>`:""}</td>
   <td>${u.role==="admin"?"—":dt(u.expiraEm)+diasRestantes(u)}</td>
   <td>${u.usoHoje} / ${u.usoTotal}</td>
