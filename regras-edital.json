@@ -1,0 +1,23 @@
+{
+ "COMUM": "Regras gerais: documentos devem ser cópias legíveis e completas, com todas as informações do original; documento falso leva à exclusão. Cursos à distância só valem se a instituição for credenciada e o diploma registrado na forma da lei. Diplomas do exterior exigem tradução juramentada (ensino médio: declaração de equivalência; técnico: revalidação; superior: revalidação por universidade pública). Não são aceitos documentos das escolas ESCON e FAJON.",
+ "EXP": {
+  "mil": "Experiência em OM militar: documento em papel timbrado, com carimbo da unidade, assinado pelo Comandante da OM ou agente designado por delegação, com datas completas de início e fim e descrição das atividades na área da especialidade. Declaração de chefe ou encarregado de setor NÃO vale.",
+  "civ": "Experiência na administração pública civil: documento de órgão federal, estadual ou municipal, em papel timbrado, com carimbo (ou CNPJ e razão social impressos), nome completo do assinante, data e assinatura, período com data completa de início e fim e descrição das atividades na área.",
+  "pri": "Experiência em empresa privada: exige DOIS comprovantes juntos: (a) cópia das páginas de identificação, dados pessoais e registro do contrato de trabalho da CTPS (pode ser impressa da versão digital) e (b) extrato do CNIS com o registro da experiência. Com só um deles, não pontua.",
+  "aut": "Experiência como autônomo: exige DOIS comprovantes: (a) contrato de prestação de serviços ou RPA, mais declaração do contratante assinada digitalmente (ICP-Brasil/gov.br) ou com firma reconhecida, em papel timbrado e carimbo de CNPJ, com nome completo, data, assinatura, período com datas completas e descrição das atividades; e (b) certidão da Prefeitura do tempo de cadastro como autônomo e comprovante de recolhimento de ISS no período. Com só um, não pontua.",
+  "obr": "Experiência em obras/serviços: Certidão de Acervo Técnico emitida por Conselho Profissional, em nome do voluntário, com período (início e fim), responsável técnico, dados das ARTs, local e data de expedição, autenticação digital e número de controle para consulta."
+ },
+ "EXPR": "Para pontuar, cada período deve ter no mínimo 180 dias ininterruptos na mesma empresa/órgão, na especialidade, exercido até o último dia de inscrição e após a formação do requisito específico. Períodos sobrepostos contam uma vez. Não contam: estágio, voluntariado, monitoria, bolsa, nem experiência como sócio/proprietário.",
+ "REF": {
+  "fi": "Anexo F (alínea b); 4.1.8; 4.1.9; 5.2.2; 5.2.4",
+  "anf": "Anexo F (alínea a e campos de preenchimento e assinatura do voluntário); 5.2.2",
+  "id": "Anexo F (alínea c); 5.2.10 (a a e); 5.2.11; 5.1.3",
+  "cpf": "Anexo F (alínea d)",
+  "alt": "Anexo F (alínea e); 3.1.1 (i, j, k, l)",
+  "em": "Anexo F (alínea f); 5.2.4; 5.3.6; 5.3.7; 5.3.8",
+  "hist": "Anexo F (alíneas f e g); 3.1.2; 3.1.3",
+  "tec": "Anexo E; Anexo F (alínea g); 3.1.2; 3.1.3; 5.3.6; 5.3.9; 5.3.10; 5.3.11",
+  "cur": "Anexo F (alíneas h e i); Anexo G da especialidade; 5.4.6 a 5.4.11; 5.4.14",
+  "exp": "Anexo F (alínea j); 5.4.12.1 a 5.4.12.5 (conforme o tipo); 5.4.13; 5.4.15 a 5.4.19"
+ }
+}

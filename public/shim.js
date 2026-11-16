@@ -13,7 +13,7 @@
       var imgs = await Promise.all(((opts && opts.images) || []).map(blobParaBase64));
       var r = await fetch("/api/analisar", {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin",
-        body: JSON.stringify({ prompt: prompt, images: imgs })
+        body: JSON.stringify({ tipo: prompt && prompt.tipo, ctx: prompt && prompt.ctx, images: imgs })
       });
       var d = await r.json().catch(function () { return {}; });
       if (r.status === 401) { location.href = "/login"; throw new Error("Sessão expirada."); }

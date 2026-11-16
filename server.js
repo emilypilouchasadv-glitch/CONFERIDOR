@@ -6,6 +6,7 @@ const express = require("express");
 const cookieParser = require("cookie-parser");
 const bcrypt = require("bcryptjs");
 const Anthropic = require("@anthropic-ai/sdk");
+const { montarPrompt } = require("./prompts");
 
 // Carrega .env simples (sem dependência extra)
 const envFile = path.join(__dirname, ".env");
@@ -269,9 +270,12 @@ app.post("/api/analisar", exigeLogin(true), async (req, res) => {
     if (u.limiteTotal > 0 && (u.usoTotal || 0) >= u.limiteTotal)
       return res.status(403).json({ erro: `Você atingiu o limite total de ${u.limiteTotal} análises. Fale com o administrador.`, codigo: "limite" });
   }
-  const prompt = String(req.body.prompt || "");
+  // O navegador só envia o tipo de análise e os dados da tela; as instruções ficam no servidor
+  let prompt;
+  try { prompt = montarPrompt(req.body.tipo, req.body.ctx); }
+  catch (e) { return res.status(400).json({ erro: e.message }); }
   const imagens = Array.isArray(req.body.images) ? req.body.images.slice(0, MAX_IMAGENS) : [];
-  if (!prompt) return res.status(400).json({ erro: "Pedido vazio." });
+  if (!imagens.length) return res.status(400).json({ erro: "Anexe ao menos um documento." });
 
   // Reserva o uso antes da chamada (evita ultrapassar o limite com cliques simultâneos)
   usoHoje(u); u.usoDia.qtd++; u.usoTotal = (u.usoTotal || 0) + 1; save();
