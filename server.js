@@ -249,7 +249,12 @@ app.post("/api/trocar-senha", exigeLogin(true), (req, res) => {
 });
 
 // ---------- API: análise com Claude ----------
-const anthropic = new Anthropic(); // usa ANTHROPIC_API_KEY
+// Aceita a chave mesmo se colada junto com outro texto (ex.: um comando curl de exemplo)
+const CHAVE_API = (String(process.env.ANTHROPIC_API_KEY || "").match(/sk-ant-[A-Za-z0-9_\-]+/) || [""])[0];
+if (!CHAVE_API) console.error("ATENÇÃO: ANTHROPIC_API_KEY ausente ou inválida (deve começar com sk-ant-).");
+const anthropic = new Anthropic({ apiKey: CHAVE_API || "sem-chave" });
+// Erros com mensagem segura para mostrar ao usuário; qualquer outro erro vira mensagem genérica
+class ErroUsuario extends Error {}
 const MAX_IMAGENS = 6;
 
 function extrairJSON(texto) {
@@ -257,7 +262,7 @@ function extrairJSON(texto) {
   try { return JSON.parse(t); } catch {}
   const i = t.indexOf("{"), j = t.lastIndexOf("}");
   if (i >= 0 && j > i) return JSON.parse(t.slice(i, j + 1));
-  throw new Error("A resposta da análise não veio no formato esperado.");
+  throw new ErroUsuario("A resposta da análise não veio no formato esperado. Tente novamente.");
 }
 
 app.post("/api/analisar", exigeLogin(true), async (req, res) => {
@@ -302,17 +307,19 @@ app.post("/api/analisar", exigeLogin(true), async (req, res) => {
       if (!(e instanceof Anthropic.BadRequestError)) throw e;
       resp = await anthropic.messages.create(base); // modelo sem suporte a fallback
     }
-    if (resp.stop_reason === "refusal") throw new Error("A análise foi recusada para este documento.");
+    if (resp.stop_reason === "refusal") throw new ErroUsuario("A análise foi recusada para este documento.");
     const texto = resp.content.filter((b) => b.type === "text").map((b) => b.text).join("");
     const json = extrairJSON(texto);
     log(u.id, "analise", `${imagens.length} imagem(ns)`);
     res.json({ ok: true, resultado: json });
   } catch (e) {
     estornar();
-    console.error("Erro na análise:", e?.status, e?.message);
-    const msg = e instanceof Anthropic.APIError
-      ? (e.status === 429 ? "Serviço de análise ocupado. Tente novamente em instantes." : "Falha no serviço de análise. Tente novamente.")
-      : e.message || "Falha na análise.";
+    const oculta = (t) => String(t || "").replace(/sk-ant-[A-Za-z0-9_\-]+/g, "sk-ant-***");
+    console.error("Erro na análise:", e?.status || "", oculta(e?.message));
+    const msg = e instanceof ErroUsuario ? e.message
+      : e instanceof Anthropic.APIError && e.status === 429 ? "Serviço de análise ocupado. Tente novamente em instantes."
+      : e instanceof Anthropic.AuthenticationError ? "O serviço de análise não está configurado corretamente. Avise o administrador."
+      : "Falha no serviço de análise. Tente novamente em instantes.";
     res.status(502).json({ erro: msg });
   }
 });
