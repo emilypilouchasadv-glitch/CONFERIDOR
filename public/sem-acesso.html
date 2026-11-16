@@ -1,0 +1,13 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Acesso · Conferidor de Documentos</title><link rel="stylesheet" href="/estilo.css"></head>
+<body><header class="topo"><div><div class="ey">Apoio ao voluntário · QSCon 2027</div><h1>Conferidor de Documentos</h1></div><button id="sair">Sair</button></header>
+<main><div class="card login"><h2 id="tit">Acesso não liberado</h2><p id="txt" class="mu"></p>
+<button class="w100 sec" onclick="location.reload()">Verificar novamente</button></div></main>
+<script>
+fetch("/api/eu").then(r=>r.json()).then(u=>{
+ if(u.acessoOk)return location.href="/app";
+ document.getElementById("tit").textContent={pendente:"Cadastro em análise",bloqueado:"Acesso desabilitado",expirado:"Acesso expirado"}[u.situacao]||"Acesso não liberado";
+ document.getElementById("txt").textContent=`Olá, ${u.nome}. ${u.mensagem}`;
+});
+document.getElementById("sair").onclick=async()=>{await fetch("/api/logout",{method:"POST"});location.href="/login"};
+</script></body></html>

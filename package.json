@@ -1,0 +1,16 @@
+{
+  "name": "conferidor-documentos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Conferidor de Documentos com login, cadastro e painel administrativo",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@anthropic-ai/sdk": "*",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.21.2"
+  }
+}

@@ -1,0 +1,129 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Painel Admin · Conferidor</title><link rel="stylesheet" href="/estilo.css"></head>
+<body>
+<header class="topo"><div><div class="ey">Painel do administrador</div><h1>Conferidor de Documentos</h1></div>
+ <div class="acoes"><a href="/app">Abrir conferidor</a><a href="/api/admin/exportar.csv">Exportar CSV</a><button id="sair">Sair</button></div></header>
+<main>
+ <div class="stats" id="stats"></div>
+
+ <div class="card">
+  <div class="filtros">
+   <input id="busca" placeholder="Buscar por nome, e-mail ou telefone">
+   <select id="filtro"><option value="">Todos</option><option value="pendente">Pendentes</option><option value="ativo">Ativos</option><option value="expirado">Expirados</option><option value="bloqueado">Desabilitados</option></select>
+   <button id="btnNovo">+ Novo usuário</button>
+  </div>
+  <div class="tabela"><table>
+   <thead><tr><th>Usuário</th><th>Situação</th><th>Acesso até</th><th>Uso (hoje / total)</th><th>Limites</th><th>Ações</th></tr></thead>
+   <tbody id="lista"></tbody>
+  </table></div>
+ </div>
+
+ <div class="card"><h2 style="margin-top:0;font-size:1.05rem">Histórico recente</h2><div class="tabela"><table><thead><tr><th>Quando</th><th>Usuário</th><th>Ação</th><th>Detalhe</th></tr></thead><tbody id="hist"></tbody></table></div></div>
+</main>
+
+<dialog id="dLiberar"><h3 style="margin-top:0">Liberar acesso</h3><p class="mu" id="lNome"></p>
+ <div class="planos" id="planos"></div>
+ <label class="ck"><input type="checkbox" id="somar"> Somar ao prazo atual (se ainda estiver ativo)</label>
+ <div class="acoes" style="justify-content:flex-end"><button class="sec" onclick="this.closest('dialog').close()">Cancelar</button></div>
+</dialog>
+
+<dialog id="dEditar"><h3 style="margin-top:0">Limites e dados</h3><p class="mu" id="eNome"></p>
+ <form id="fEditar">
+  <div class="linha"><div><label>Análises por dia (0 = sem limite)</label><input name="limiteDia" type="number" min="0"></div>
+  <div><label>Análises no total (0 = sem limite)</label><input name="limiteTotal" type="number" min="0"></div></div>
+  <label>Acesso até (data manual — opcional)</label><input name="expiraEm" type="date">
+  <label>Observação interna</label><input name="observacao">
+  <label>Definir nova senha (opcional)</label><input name="senha" type="text" minlength="6" placeholder="deixe em branco para não mudar">
+  <div class="acoes" style="justify-content:space-between;margin-top:14px">
+   <span class="acoes"><button type="button" class="sec" id="zerar">Zerar uso</button><button type="button" class="perigo" id="excluir">Excluir</button></span>
+   <span class="acoes"><button type="button" class="sec" onclick="this.closest('dialog').close()">Cancelar</button><button>Salvar</button></span>
+  </div>
+ </form>
+</dialog>
+
+<dialog id="dNovo"><h3 style="margin-top:0">Novo usuário</h3>
+ <form id="fNovo">
+  <label>Nome</label><input name="nome" required>
+  <label>E-mail</label><input name="email" type="email" required>
+  <label>Telefone</label><input name="telefone">
+  <label>Senha inicial</label><input name="senha" minlength="6" required>
+  <label>Acesso</label><select name="dias"><option value="">Deixar pendente</option><option value="3">3 dias</option><option value="7">7 dias</option><option value="15">15 dias</option><option value="30">30 dias</option><option value="365">1 ano</option></select>
+  <div class="acoes" style="justify-content:flex-end;margin-top:14px"><button type="button" class="sec" onclick="this.closest('dialog').close()">Cancelar</button><button>Criar</button></div>
+ </form>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const dt=d=>d?new Date(d).toLocaleDateString("pt-BR"):"—";
+const dth=d=>d?new Date(d).toLocaleString("pt-BR"):"—";
+const NOMES={ativo:"Ativo",pendente:"Pendente",bloqueado:"Desabilitado",expirado:"Expirado"};
+let U=[],PLANOS={},atual=null;
+
+async function api(url,body){
+ const r=await fetch(url,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{});
+ const d=await r.json().catch(()=>({}));
+ if(r.status===401||r.status===403){location.href="/login";throw 0}
+ if(!r.ok){alert(d.erro||"Erro");throw 0}
+ return d;
+}
+async function carregar(){
+ const d=await api("/api/admin/usuarios");U=d.usuarios;PLANOS=d.planos;render();
+ const h=await api("/api/admin/historico");
+ $("#hist").innerHTML=h.logs.slice(0,60).map(l=>`<tr><td>${dth(l.em)}</td><td>${esc(l.email)}</td><td>${esc(l.acao)}</td><td class="mu">${esc(l.detalhe)}</td></tr>`).join("")||'<tr><td colspan=4 class="mu">Sem registros.</td></tr>';
+}
+function diasRestantes(u){if(!u.expiraEm)return"";const d=Math.ceil((Date.parse(u.expiraEm)-Date.now())/864e5);return d>0?` <span class="mu">(${d} dia${d>1?"s":""})</span>`:""}
+function render(){
+ const c={total:U.length,ativo:0,pendente:0,expirado:0,bloqueado:0,hoje:0};
+ U.forEach(u=>{c[u.situacao]++;c.hoje+=u.usoHoje});
+ $("#stats").innerHTML=[["Cadastrados",c.total],["Ativos",c.ativo],["Pendentes",c.pendente],["Expirados",c.expirado],["Desabilitados",c.bloqueado],["Análises hoje",c.hoje]].map(([a,b])=>`<div><b>${b}</b><span class="mu">${a}</span></div>`).join("");
+ const q=$("#busca").value.toLowerCase(),f=$("#filtro").value;
+ const L=U.filter(u=>(!f||u.situacao===f)&&(!q||(u.nome+u.email+u.telefone).toLowerCase().includes(q)));
+ $("#lista").innerHTML=L.map(u=>`<tr>
+  <td><b>${esc(u.nome)}</b>${u.role==="admin"?' <span class="badge">admin</span>':""}<br><span class="mu">${esc(u.email)}${u.telefone?" · "+esc(u.telefone):""}</span><br><span class="mu">Cadastro: ${dt(u.criadoEm)} · Último acesso: ${dt(u.ultimoAcesso)}</span>${u.observacao?`<br><span class="mu">📝 ${esc(u.observacao)}</span>`:""}</td>
+  <td><span class="badge b-${u.situacao}">${NOMES[u.situacao]}</span>${u.plano?`<br><span class="mu">${esc(u.plano)}</span>`:""}</td>
+  <td>${u.role==="admin"?"—":dt(u.expiraEm)+diasRestantes(u)}</td>
+  <td>${u.usoHoje} / ${u.usoTotal}</td>
+  <td class="mu">${u.limiteDia||"∞"}/dia<br>${u.limiteTotal||"∞"} total</td>
+  <td><div class="acoes">
+   <button class="ok" data-a="liberar" data-id="${u.id}">Liberar</button>
+   ${u.status==="bloqueado"?`<button class="sec" data-a="habilitar" data-id="${u.id}">Habilitar</button>`:`<button class="perigo" data-a="desabilitar" data-id="${u.id}">Desabilitar</button>`}
+   <button class="sec" data-a="editar" data-id="${u.id}">Limites</button>
+  </div></td></tr>`).join("")||'<tr><td colspan=6 class="mu">Nenhum usuário.</td></tr>';
+}
+$("#busca").oninput=render;$("#filtro").onchange=render;
+$("#lista").onclick=async e=>{
+ const b=e.target.closest("button[data-a]");if(!b)return;
+ atual=U.find(u=>u.id===b.dataset.id);const a=b.dataset.a;
+ if(a==="liberar"){
+  $("#lNome").textContent=`${atual.nome} (${atual.email})`;
+  $("#planos").innerHTML=Object.entries(PLANOS).map(([d,n])=>`<button data-d="${d}">${n}</button>`).join("");
+  $("#dLiberar").showModal();
+ }else if(a==="editar"){
+  const f=$("#fEditar");$("#eNome").textContent=`${atual.nome} (${atual.email})`;
+  f.limiteDia.value=atual.limiteDia;f.limiteTotal.value=atual.limiteTotal;f.observacao.value=atual.observacao||"";f.senha.value="";
+  f.expiraEm.value=atual.expiraEm?new Date(atual.expiraEm).toISOString().slice(0,10):"";
+  $("#dEditar").showModal();
+ }else if(a==="desabilitar"){
+  if(confirm(`Desabilitar o acesso de ${atual.nome}?`)){await api(`/api/admin/usuarios/${atual.id}`,{acao:"desabilitar"});carregar()}
+ }else if(a==="habilitar"){await api(`/api/admin/usuarios/${atual.id}`,{acao:"habilitar"});carregar()}
+};
+$("#planos").onclick=async e=>{
+ const b=e.target.closest("button[data-d]");if(!b)return;
+ await api(`/api/admin/usuarios/${atual.id}`,{acao:"liberar",dias:+b.dataset.d,somar:$("#somar").checked});
+ $("#dLiberar").close();carregar();
+};
+$("#fEditar").onsubmit=async e=>{
+ e.preventDefault();const f=e.target;
+ await api(`/api/admin/usuarios/${atual.id}`,{acao:"limites",limiteDia:f.limiteDia.value,limiteTotal:f.limiteTotal.value,observacao:f.observacao.value,expiraEm:f.expiraEm.value});
+ if(f.senha.value)await api(`/api/admin/usuarios/${atual.id}`,{acao:"novaSenha",senha:f.senha.value});
+ $("#dEditar").close();carregar();
+};
+$("#zerar").onclick=async()=>{if(confirm("Zerar o contador de uso deste usuário?")){await api(`/api/admin/usuarios/${atual.id}`,{acao:"zerarUso"});$("#dEditar").close();carregar()}};
+$("#excluir").onclick=async()=>{if(confirm(`Excluir definitivamente ${atual.nome}?`)){await api(`/api/admin/usuarios/${atual.id}`,{acao:"excluir"});$("#dEditar").close();carregar()}};
+$("#btnNovo").onclick=()=>{$("#fNovo").reset();$("#dNovo").showModal()};
+$("#fNovo").onsubmit=async e=>{e.preventDefault();await api("/api/admin/criar",Object.fromEntries(new FormData(e.target)));$("#dNovo").close();carregar()};
+$("#sair").onclick=async()=>{await fetch("/api/logout",{method:"POST"});location.href="/login"};
+carregar();
+</script>
+</body></html>

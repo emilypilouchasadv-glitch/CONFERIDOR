@@ -1,0 +1,35 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrar · Conferidor de Documentos</title><link rel="stylesheet" href="/estilo.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>"></head>
+<body><header class="topo"><div><div class="ey">Apoio ao voluntário · QSCon 2027</div><h1>Conferidor de Documentos</h1></div></header>
+<main><div class="card login">
+ <div class="abas"><button id="tEntrar">Entrar</button><button id="tCad" class="sec">Criar conta</button></div>
+ <form id="fEntrar">
+  <label>E-mail</label><input name="email" type="email" required autocomplete="username">
+  <label>Senha</label><input name="senha" type="password" required autocomplete="current-password">
+  <button class="w100">Entrar</button>
+ </form>
+ <form id="fCad" hidden>
+  <label>Nome completo</label><input name="nome" required>
+  <label>E-mail</label><input name="email" type="email" required autocomplete="username">
+  <label>Telefone / WhatsApp (opcional)</label><input name="telefone">
+  <label>Senha (mínimo 6 caracteres)</label><input name="senha" type="password" minlength="6" required autocomplete="new-password">
+  <button class="w100">Criar conta</button>
+  <p class="mu">Após o cadastro, o acesso é liberado pelo administrador.</p>
+ </form>
+ <div id="msg" class="msg"></div>
+</div></main>
+<script>
+const $=s=>document.querySelector(s);
+function aba(c){$("#fEntrar").hidden=c;$("#fCad").hidden=!c;$("#tEntrar").className=c?"sec":"";$("#tCad").className=c?"":"sec";$("#msg").textContent=""}
+$("#tEntrar").onclick=()=>aba(false);$("#tCad").onclick=()=>aba(true);
+async function enviar(url,form){
+ const m=$("#msg");m.className="msg";m.textContent="Aguarde…";
+ const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.fromEntries(new FormData(form)))});
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok){m.className="msg erro";m.textContent=d.erro||"Erro.";return}
+ location.href=d.admin?"/admin":"/app";
+}
+$("#fEntrar").onsubmit=e=>{e.preventDefault();enviar("/api/login",e.target)};
+$("#fCad").onsubmit=e=>{e.preventDefault();enviar("/api/cadastro",e.target)};
+</script></body></html>
