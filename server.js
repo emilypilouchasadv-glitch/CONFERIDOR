@@ -25,19 +25,47 @@ const LIMITE_TOTAL_PADRAO = +(process.env.LIMITE_TOTAL_PADRAO ?? 0);
 const PLANOS = { 3: "3 dias", 7: "7 dias", 15: "15 dias", 30: "30 dias", 365: "1 ano" };
 const DIA = 86400000;
 
-// ---------- Banco de dados (arquivo JSON) ----------
-fs.mkdirSync(DATA_DIR, { recursive: true });
+// ---------- Banco de dados ----------
+// Com DATABASE_URL (ex.: Neon/Supabase gratuitos) os dados ficam no PostgreSQL;
+// sem ela, ficam no arquivo data/db.json.
+const DATABASE_URL = process.env.DATABASE_URL;
+let pool = null;
 let db = { users: [], sessions: {}, logs: [] };
-if (fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE, "utf8"));
-db.users ||= []; db.sessions ||= {}; db.logs ||= [];
-let saveTimer = null;
+async function carregarBanco() {
+  if (DATABASE_URL) {
+    const { Pool } = require("pg");
+    pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 3 });
+    await pool.query("CREATE TABLE IF NOT EXISTS conferidor_dados (id INT PRIMARY KEY, dados JSONB NOT NULL)");
+    const r = await pool.query("SELECT dados FROM conferidor_dados WHERE id = 1");
+    if (r.rows[0]) db = r.rows[0].dados;
+    console.log("Banco de dados: PostgreSQL");
+  } else {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE, "utf8"));
+    console.log("Banco de dados: arquivo", DB_FILE);
+  }
+  db.users ||= []; db.sessions ||= {}; db.logs ||= [];
+}
+let saveTimer = null, salvando = Promise.resolve();
 function save() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    const tmp = DB_FILE + ".tmp";
-    fs.writeFileSync(tmp, JSON.stringify(db, null, 1));
-    fs.renameSync(tmp, DB_FILE);
-  }, 50);
+    const texto = JSON.stringify(db);
+    salvando = salvando.then(async () => {
+      try {
+        if (pool) {
+          await pool.query(
+            "INSERT INTO conferidor_dados (id, dados) VALUES (1, $1::jsonb) ON CONFLICT (id) DO UPDATE SET dados = EXCLUDED.dados",
+            [texto]
+          );
+        } else {
+          const tmp = DB_FILE + ".tmp";
+          fs.writeFileSync(tmp, texto);
+          fs.renameSync(tmp, DB_FILE);
+        }
+      } catch (e) { console.error("Erro ao salvar dados:", e.message); }
+    });
+  }, 200);
 }
 function log(userId, acao, detalhe = "") {
   db.logs.push({ em: new Date().toISOString(), userId, acao, detalhe });
@@ -49,7 +77,7 @@ const novoId = () => crypto.randomBytes(8).toString("hex");
 const normEmail = (e) => String(e || "").trim().toLowerCase();
 
 // Admin inicial
-(function criarAdmin() {
+function criarAdmin() {
   const email = normEmail(process.env.ADMIN_EMAIL);
   const senha = process.env.ADMIN_PASSWORD;
   if (!email || !senha) {
@@ -67,7 +95,7 @@ const normEmail = (e) => String(e || "").trim().toLowerCase();
   u.hash = bcrypt.hashSync(senha, 10);
   u.usoTotal ||= 0; u.usoDia ||= { data: hoje(), qtd: 0 };
   save();
-})();
+}
 
 // Situação de acesso de um usuário
 function situacao(u) {
@@ -358,4 +386,9 @@ app.get("/api/admin/exportar.csv", exigeAdmin, (req, res) => {
   res.type("text/csv; charset=utf-8").send("﻿" + linhas.join("\n"));
 });
 
-app.listen(PORT, () => console.log(`Conferidor rodando em http://localhost:${PORT}  (modelo: ${MODEL})`));
+carregarBanco()
+  .then(() => {
+    criarAdmin();
+    app.listen(PORT, () => console.log(`Conferidor rodando em http://localhost:${PORT}  (modelo: ${MODEL})`));
+  })
+  .catch((e) => { console.error("Não foi possível abrir o banco de dados:", e.message); process.exit(1); });

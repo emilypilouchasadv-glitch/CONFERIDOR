@@ -19,20 +19,15 @@ A análise dos documentos usa a API da Anthropic (Claude) com a **sua chave**. A
 > Custo: cada análise envia até 6 imagens. O modelo padrão é o `claude-opus-5-5`, o mais preciso.
 > Para gastar menos, defina `CLAUDE_MODEL=claude-sonnet-5-5` (mais barato) ou `claude-haiku-5-5` (o mais barato).
 
-## 2. Publicar na internet (exemplo: Render.com)
-1. Crie uma conta no GitHub e envie esta pasta para um repositório **privado**.
-2. Em https://render.com, clique em **New → Web Service** e escolha o repositório.
-   - Build Command: `npm install`
-   - Start Command: `npm start`
-3. Em **Environment**, adicione:
-   - `ANTHROPIC_API_KEY` = sua chave
-   - `ADMIN_EMAIL` = seu e-mail
-   - `ADMIN_PASSWORD` = uma senha forte
-   - `DATA_DIR` = `/var/data`
-4. Em **Disks**, adicione um disco montado em `/var/data` (1 GB basta). **Sem o disco, os cadastros se perdem a cada atualização do serviço.** Para isso, o plano precisa ser pago (o mais barato serve).
-5. Abra o endereço que o Render mostrar, entre com o e-mail e a senha de administrador e pronto.
+## 2. Publicar de graça (Render + Neon)
+1. **Banco de dados gratuito:** entre em https://neon.tech (use "Continue with GitHub"), crie um projeto e copie a *connection string* (começa com `postgresql://`).
+2. **Site gratuito:** em https://dashboard.render.com/web/new, escolha o repositório, depois:
+   - Language: Node · Build Command: `npm install` · Start Command: `npm start` · Instance Type: **Free**
+   - Environment Variables: `ANTHROPIC_API_KEY`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `DATABASE_URL` (a connection string do Neon)
+3. Clique em **Deploy Web Service** e aguarde aparecer **Live**.
 
-Também funciona no Railway, Fly.io, numa VPS (Hostinger, DigitalOcean, etc.) ou em qualquer servidor com Node.js 18 ou mais recente.
+No plano gratuito, o site "dorme" depois de 15 minutos sem uso. O primeiro acesso depois disso leva cerca de 1 minuto para carregar; os próximos são normais.
+Os cadastros ficam salvos no Neon e não se perdem.
 
 ## 3. Rodar no próprio computador (teste)
 ```
@@ -53,4 +48,4 @@ Depois acesse http://localhost:3000
 - `views/conferidor-original.html`: o seu Conferidor, sem alterações
 - `public/shim.js`: liga o Conferidor ao servidor e mostra a barra com o nome e o uso
 - `public/login.html`, `public/admin.html`, `public/sem-acesso.html`: telas novas
-- `data/db.json`: banco de dados (criado automaticamente; faça backup dele)
+- `data/db.json`: banco de dados quando não há `DATABASE_URL` (uso local)
